@@ -55,3 +55,62 @@ jobs:
             --scanners vuln \
             --severity HIGH,CRITICAL \
             --exit-code 1
+
+      - name: Save scanned image for publishing
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: scanned-container-image
+          path: ${{ runner.temp }}/secure-data-release-lab.tar
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  publish-image:
+    name: Publish scanned image to ECR
+    needs: unit-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+
+    env:
+      AWS_REGION: us-east-1
+      ECR_REGISTRY: 632773076321.dkr.ecr.us-east-1.amazonaws.com
+      ECR_REPOSITORY: secure-data-release-lab
+
+    steps:
+      - name: Download the scanned image
+        uses: actions/download-artifact@v4
+        with:
+          name: scanned-container-image
+          path: ${{ runner.temp }}
+
+      - name: Load the scanned image
+        run: docker load --input "$RUNNER_TEMP/secure-data-release-lab.tar"
+
+      - name: Assume the AWS publishing role
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Publish image and verify digest
+        run: |
+          set -euo pipefail
+          image_tag="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          image_uri="$ECR_REGISTRY/$ECR_REPOSITORY:$image_tag"
+
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+          docker tag secure-data-release-lab:ci "$image_uri"
+          docker push "$image_uri"
+
+          aws ecr describe-images \
+            --region "$AWS_REGION" \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$image_tag" \
+            --query 'imageDetails[0].{Tags:imageTags,Digest:imageDigest}' \
+            --output json
