@@ -16,4 +16,5 @@ if __name__ == "__main__":
         {"status": "processed"},
         {"status": "received"},
     ]
+    assert records
     print(summarize_records(records))
