@@ -1,2 +1,0 @@
-# Synthetic scanner test value with no associated account
-api_key = "c7e29b41d0f83a26e55b9a6048df1c73"
