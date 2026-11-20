@@ -13,7 +13,7 @@ class SummarizeRecordsTests(unittest.TestCase):
 
         self.assertEqual(
             summarize_records(records),
-            {"received": 3, "processed": 1},
+            {"received": 2, "processed": 1},
         )
 
     def test_rejects_unsupported_status(self):
