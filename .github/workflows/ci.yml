@@ -40,3 +40,18 @@ jobs:
             --volume "$GITHUB_WORKSPACE:/repo:ro" \
             ghcr.io/gitleaks/gitleaks:v8.30.1 \
             dir --redact=100 /repo
+
+      - name: Build and export application image
+        run: |
+          docker build -t secure-data-release-lab:ci .
+          docker save -o "$RUNNER_TEMP/secure-data-release-lab.tar" secure-data-release-lab:ci
+
+      - name: Scan container image with Trivy
+        run: |
+          docker run --rm \
+            --volume "$RUNNER_TEMP/secure-data-release-lab.tar:/image.tar:ro" \
+            aquasec/trivy:0.69.3 image \
+            --input /image.tar \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --exit-code 1
