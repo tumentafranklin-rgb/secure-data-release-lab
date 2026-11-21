@@ -82,7 +82,7 @@ jobs:
 
     steps:
       - name: Download the scanned image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: scanned-container-image
           path: ${{ runner.temp }}
